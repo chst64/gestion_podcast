@@ -4,21 +4,23 @@
 File:  gestion_podcast.py
 Author: Pablo J
 Email: chst64@gmail.com
-Github: https://github.com/yourname
+Github: https://github.com/chst64
 Description: 
     Este es un programa que lee un fichero xml con todos los capitulos del
     podcast y descarga todos los capitulos y los guarda en formato:
     20201003_titulo del podcast.mp3, donde 20201003 es año2020, mes10 y dia 03
     tambien se escribe los datos de los IDTags del mp3
 
-
 === TODO ===
 - Elegir el directorio donde guardar los podcast
 - Algunos podcast como 6minutesEnglish estan en otro formato (formato itunes??)
 """
 
+try:
+    import eyed3
+except ModuleNotFoundError:
+    print("!!! No se encuentra el modulo eyed3. Instalar con yay -S python-eyed3")
 
-import eyed3
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -47,16 +49,19 @@ DICC_PODCAST = {"nieves":["http://fapi-top.prisasd.com/podcast/playser/cualquier
         "domotica":[ "https://www.ivoox.com/domotica-compatible_fg_f11161752_filtro_1.xml","domotica.xml","domotica","Album"],
         "tp":[ "https://www.ivoox.com/todopoderosos_fg_f1147805_filtro_1.xml","todopoderosos.xml","todopoderosos","Album"],
         "pythones":[ "https://podcast.jcea.es/python.xml","pythones.xml","pythones","Album"],
-        "programar":[ "https://www.ivoox.com/podcast-programar-es-mierda_fg_f1432444_filtro_1.xml","programar.xml","programar","Album"],
-        "realpython":[ "https://realpython.com/podcasts/rpp/feed","realpython.xml","real python","Album"],
-        "talkpython":[ "https://talkpython.fm/subscribe/rss","talkpython.xml","talk python","Album"],
-        "pythonpodcast":[ "https://www.pythonpodcast.com/rss","python.xml","python podcast","Album"]
+        "programar":[ "https://www.ivoox.com/podcast-programar-es-mierda_fg_f1432444_filtro_1.xml", "programar.xml", "programar", "Album"],
+        "realpython":[ "https://realpython.com/podcasts/rpp/feed","realpython.xml","real python", "Album"],
+        "talkpython":[ "https://talkpython.fm/subscribe/rss","talkpython.xml","talk python", "Album"],
+        "pythonpodcast":[ "https://www.pythonpodcast.com/rss","python.xml","python podcast", "Album"],
+        "geeky":[ "https://www.ivoox.com/podcast-geeky-theory_fg_f1138567_filtro_1.xml","geeky.xml", "geeky", "podcast"],
+        "naseros":[ "https://www.ivoox.com/feed_fg_f1179187_filtro_1.xml","naseros.xml","naseros", "podcast"],
+        "kernel":[ "https://www.ivoox.com/feed_fg_f12610_filtro_1.xml","kernel.xml","kernel", "podcast"],
+        "tierra":[ "https://www.ivoox.com/feed_fg_f1891863_filtro_1.xml","tierra_hackers.xml", "tierra hackers","podcast"],
+        "gigantes": ["http://www.rtve.es/api/programas/1873/audios.rss", "gigantes.rss", "A hombros de gigantes", "podcast"],
+        "tecnologia": ["https://www.spreaker.com/show/1388485/episodes/feed", "tecnologia.rss", "Tecnologia para todos", "podcast"],
+        "bolsillo": ["http://www.rtve.es/api/programas/1000581/audios.rss", "economia_bolsillo.rss", "Economia de bolsillo", "podcast"],
         }
 
-
-#if os.path.exists(FILENAME):
-#    doc_xml = ET.parse(FILENAME)
-#    raiz = doc_xml.getroot()
 
 lista_episodios = [] # Lista de instancias de Episodios donde se guarda la informacion de cada episodio
 
@@ -134,7 +139,12 @@ def cargar_datos_podcast(fichero_podcast:str) -> list:
         mp3 = episodio.find("enclosure").get("url")
         fecha = episodio.find("pubDate").text
         fecha = fecha[:16] # Recorto la fecha para dejar solo en formato Tue, 28 Jun 2016
-        pubDate = datetime.strptime(fecha,"%a, %d %b %Y")
+        
+        # Hay podcast que la fecha viene en otro formato. Si es asi pongo la fecha de hoy y a correr
+        try:
+            pubDate = datetime.strptime(fecha,"%a, %d %b %Y")
+        except ValueError as e:
+            pubDate = datetime.today()
 
         # Creo una instancia de episodio con los datos
         mi_episodio=Episodio(titulo, descripcion, mp3, pubDate)
@@ -202,14 +212,15 @@ def modifica_tag(episodio,artista,album):
 
     try:
         audiofile = eyed3.load(episodio.salida_mp3)
+        if audiofile:
+            audiofile.tag.artist = artista 
+            audiofile.tag.album = album 
+            audiofile.tag.title = episodio.titulo.lstrip(' ') #Quito los espacios de la izquierda
+            audiofile.release_date = episodio.pubdate
+            audiofile.tag.save()
+
     except OSError:
         print("No se encuentra el fichero",episodio.salida_mp3)
-    else:
-        audiofile.tag.artist = artista 
-        audiofile.tag.album = album 
-        audiofile.tag.title = episodio.titulo.lstrip(' ') #Quito los espacios de la izquierda
-        audiofile.release_date = episodio.pubdate
-        audiofile.tag.save()
 
 # *****************************
 # * PROGRAMA PRINCIPAL *
@@ -230,7 +241,13 @@ if __name__=="__main__":
             6min = Podcast de 6 minutes English
             dragones = Podcast Aqui hay dragones
             vaughan = Podcast Vaughan
+            tp = todopoderosos
             domotica = Domotica compatible
+            pythones = Python en español
+            realpython = Real python
+            talkpython = Talk Python
+            pythonpodcast = Python podcast
+            geeky = Geeky
             """
             )
     parser.add_argument('--actualiza',
